@@ -18,7 +18,8 @@
 	BOOL shouldAutoClose;
 	UIColor *backgroundColor;
 	UIImageView *imageView;
-    BOOL *initFullscreen;
+  BOOL *initFullscreen;
+	double playbackRate;
 }
 
 NSString * const TYPE_VIDEO = @"VIDEO";
@@ -38,11 +39,17 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 		backgroundColor = [UIColor blackColor];
 	}
 
-    if (![options isKindOfClass:[NSNull class]] && [options objectForKey:@"initFullscreen"]) {
-        initFullscreen = [[options objectForKey:@"initFullscreen"] boolValue];
-    } else {
-        initFullscreen = true;
-    }
+  if (![options isKindOfClass:[NSNull class]] && [options objectForKey:@"initFullscreen"]) {
+      initFullscreen = [[options objectForKey:@"initFullscreen"] boolValue];
+  } else {
+      initFullscreen = true;
+  }
+
+  if (![options isKindOfClass:[NSNull class]] && [options objectForKey:@"playbackRate"]) {
+      playbackRate = [[options objectForKey:@"playbackRate"] doubleValue];
+  } else {
+      playbackRate = 1.f;
+  }
 
 	if ([type isEqualToString:TYPE_AUDIO]) {
 		// bgImage
@@ -194,6 +201,8 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 	NSURL *url = [NSURL URLWithString:uri];
 
 	moviePlayer =  [[MPMoviePlayerController alloc] initWithContentURL:url];
+
+	[moviePlayer setCurrentPlaybackRate:playbackRate];
 
 	// Listen for playback finishing
 	[[NSNotificationCenter defaultCenter] addObserver:self

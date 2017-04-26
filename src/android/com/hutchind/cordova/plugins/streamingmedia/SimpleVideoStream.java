@@ -5,6 +5,7 @@ import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.media.MediaPlayer;
+import android.os.Build;
 import android.widget.MediaController;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -31,6 +32,7 @@ public class SimpleVideoStream extends Activity implements
 	private ProgressBar mProgressBar = null;
 	private String mVideoUrl;
 	private Boolean mShouldAutoClose = true;
+	private Double mPlaybackRate = 1.0;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -63,6 +65,11 @@ public class SimpleVideoStream extends Activity implements
 		mProgressBar.bringToFront();
 
 		setOrientation(b.getString("orientation"));
+
+		if(b.containsKey("playbackRate"))
+			mPlaybackRate = b.getDouble("playbackRate");
+		else
+			mPlaybackRate = 1.0;
 
 		setContentView(relLayout, relLayoutParam);
 
@@ -115,6 +122,10 @@ public class SimpleVideoStream extends Activity implements
 		mMediaPlayer = mp;
 		mMediaPlayer.setOnBufferingUpdateListener(this);
 		mVideoView.requestFocus();
+
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+			mp.setPlaybackParams(mp.getPlaybackParams().setSpeed(mPlaybackRate.floatValue()));
+		}
 		mVideoView.start();
 		mVideoView.postDelayed(checkIfPlaying, 0);
 	}
