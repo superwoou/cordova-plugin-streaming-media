@@ -22,6 +22,10 @@ import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.VideoView;
 
+import org.apache.cordova.PluginResult;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 public class SimpleVideoStream extends Activity implements
 	MediaPlayer.OnCompletionListener, MediaPlayer.OnPreparedListener,
 	MediaPlayer.OnErrorListener, MediaPlayer.OnBufferingUpdateListener {
@@ -33,6 +37,9 @@ public class SimpleVideoStream extends Activity implements
 	private String mVideoUrl;
 	private Boolean mShouldAutoClose = true;
 	private Double mPlaybackRate = 1.0;
+	private Double mPlaybackTime = 0.0;
+	private int mDuration = 0;
+	private Boolean mIsPause = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -71,6 +78,11 @@ public class SimpleVideoStream extends Activity implements
 		else
 			mPlaybackRate = 1.0;
 
+		if(b.containsKey("playbackTime"))
+			mPlaybackTime = b.getDouble("playbackTime");
+		else
+			mPlaybackTime = 0.0;
+
 		setContentView(relLayout, relLayoutParam);
 
 		play();
@@ -108,10 +120,34 @@ public class SimpleVideoStream extends Activity implements
 				// Video is not at the very beginning anymore.
 				// Hide the progress bar.
 				mProgressBar.setVisibility(View.GONE);
+				if(mPlaybackTime > 0.0) {
+					mMediaPlayer.seekTo((int)(mPlaybackTime * 1000));
+					Log.d(TAG, String.format("seekTo %d", mMediaPlayer.getCurrentPosition()));
+				}
 			} else {
 				// Video is still at the very beginning.
 				// Check again after a small amount of time.
 				mVideoView.postDelayed(checkIfPlaying, 100);
+			}
+		}
+	};
+
+
+	private Runnable pauseCheck = new Runnable() {
+		@Override
+		public void run() {
+			try {
+				if (mMediaPlayer.isPlaying()) {
+					mIsPause = false;
+				} else {
+					if(!mIsPause) {
+						pause();
+					}
+					mIsPause = true;
+				}
+				mVideoView.postDelayed(pauseCheck, 300);
+			} catch(Exception e) {
+
 			}
 		}
 	};
@@ -123,21 +159,48 @@ public class SimpleVideoStream extends Activity implements
 		mMediaPlayer.setOnBufferingUpdateListener(this);
 		mVideoView.requestFocus();
 
+		mDuration = mp.getDuration();
+
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 			mp.setPlaybackParams(mp.getPlaybackParams().setSpeed(mPlaybackRate.floatValue()));
 		}
+		mp.seekTo((int)(mPlaybackTime.floatValue() * 1000));
 		mVideoView.start();
 		mVideoView.postDelayed(checkIfPlaying, 0);
+		mVideoView.postDelayed(pauseCheck, 300);
+	}
+
+	@Override
+	public void onPause() {
+		super.onPause();
+		pause();
 	}
 
 	private void pause() {
 		Log.d(TAG, "Pausing video.");
+
+		JSONObject json = new JSONObject();
+		try {
+			json.put("type", "pause");
+			json.put("duration", mDuration);
+			try {
+				json.put("position", mMediaPlayer.getCurrentPosition());
+			} catch(IllegalStateException e) {
+				json.put("position", mDuration);
+			}
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+
+		PluginResult result = new PluginResult(PluginResult.Status.OK, json.toString());
+		result.setKeepCallback(true);
+		StreamingMedia.callbackContext.sendPluginResult(result);
+
 		mVideoView.pause();
 	}
 
 	private void stop() {
 		Log.d(TAG, "Stopping video.");
-		mVideoView.stopPlayback();
 	}
 
 	@Override
@@ -148,6 +211,21 @@ public class SimpleVideoStream extends Activity implements
 
 	private void wrapItUp(int resultCode, String message) {
 		Intent intent = new Intent();
+		if(resultCode == RESULT_OK) {
+			JSONObject json = new JSONObject();
+			try {
+				json.put("type", "end");
+				json.put("duration", mDuration);
+				try {
+					json.put("position", mMediaPlayer.getCurrentPosition());
+				} catch(IllegalStateException e) {
+					json.put("position", mDuration);
+				}
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+			intent.putExtra("json", json.toString());
+		}
 		intent.putExtra("message", message);
 		setResult(resultCode, intent);
 		finish();

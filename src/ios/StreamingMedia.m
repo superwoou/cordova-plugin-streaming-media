@@ -2,14 +2,14 @@
 #import <Cordova/CDV.h>
 
 @interface StreamingMedia()
-	- (void)parseOptions:(NSDictionary *) options type:(NSString *) type;
-	- (void)play:(CDVInvokedUrlCommand *) command type:(NSString *) type;
-	- (void)setBackgroundColor:(NSString *)color;
-	- (void)setImage:(NSString*)imagePath withScaleType:(NSString*)imageScaleType;
-	- (UIImage*)getImage: (NSString *)imageName;
-	- (void)startPlayer:(NSString*)uri;
-	- (void)moviePlayBackDidFinish:(NSNotification*)notification;
-	- (void)cleanup;
+- (void)parseOptions:(NSDictionary *) options type:(NSString *) type;
+- (void)play:(CDVInvokedUrlCommand *) command type:(NSString *) type;
+- (void)setBackgroundColor:(NSString *)color;
+- (void)setImage:(NSString*)imagePath withScaleType:(NSString*)imageScaleType;
+- (UIImage*)getImage: (NSString *)imageName;
+- (void)startPlayer:(NSString*)uri;
+- (void)moviePlayBackDidFinish:(NSNotification*)notification;
+- (void)cleanup;
 @end
 
 @implementation StreamingMedia {
@@ -18,8 +18,9 @@
 	BOOL shouldAutoClose;
 	UIColor *backgroundColor;
 	UIImageView *imageView;
-  BOOL *initFullscreen;
+	BOOL *initFullscreen;
 	double playbackRate;
+	BOOL isPause;
 }
 
 NSString * const TYPE_VIDEO = @"VIDEO";
@@ -39,17 +40,17 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 		backgroundColor = [UIColor blackColor];
 	}
 
-  if (![options isKindOfClass:[NSNull class]] && [options objectForKey:@"initFullscreen"]) {
-      initFullscreen = [[options objectForKey:@"initFullscreen"] boolValue];
-  } else {
-      initFullscreen = true;
-  }
+	if (![options isKindOfClass:[NSNull class]] && [options objectForKey:@"initFullscreen"]) {
+		initFullscreen = [[options objectForKey:@"initFullscreen"] boolValue];
+	} else {
+		initFullscreen = true;
+	}
 
-  if (![options isKindOfClass:[NSNull class]] && [options objectForKey:@"playbackRate"]) {
-      playbackRate = [[options objectForKey:@"playbackRate"] doubleValue];
-  } else {
-      playbackRate = 1.f;
-  }
+	if (![options isKindOfClass:[NSNull class]] && [options objectForKey:@"playbackRate"]) {
+		playbackRate = [[options objectForKey:@"playbackRate"] doubleValue];
+	} else {
+		playbackRate = 1.f;
+	}
 
 	if ([type isEqualToString:TYPE_AUDIO]) {
 		// bgImage
@@ -77,28 +78,30 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 	NSString *mediaUrl  = [command.arguments objectAtIndex:0];
 	[self parseOptions:[command.arguments objectAtIndex:1] type:type];
 
+	isPause = false;
+
 	[self startPlayer:mediaUrl];
 }
 
 -(void)pause:(CDVInvokedUrlCommand *) command type:(NSString *) type {
-    callbackId = command.callbackId;
-    if (moviePlayer) {
-        [moviePlayer pause];
-    }
+	callbackId = command.callbackId;
+	if (moviePlayer) {
+		[moviePlayer pause];
+	}
 }
 
 -(void)resume:(CDVInvokedUrlCommand *) command type:(NSString *) type {
-    callbackId = command.callbackId;
-    if (moviePlayer) {
-        [moviePlayer play];
-    }
+	callbackId = command.callbackId;
+	if (moviePlayer) {
+		[moviePlayer play];
+	}
 }
 
 -(void)stop:(CDVInvokedUrlCommand *) command type:(NSString *) type {
-    callbackId = command.callbackId;
-    if (moviePlayer) {
-        [moviePlayer stop];
-    }
+	callbackId = command.callbackId;
+	if (moviePlayer) {
+		[moviePlayer stop];
+	}
 }
 
 -(void)playVideo:(CDVInvokedUrlCommand *) command {
@@ -110,15 +113,15 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 }
 
 -(void)pauseAudio:(CDVInvokedUrlCommand *) command {
-    [self pause:command type:[NSString stringWithString:TYPE_AUDIO]];
+	[self pause:command type:[NSString stringWithString:TYPE_AUDIO]];
 }
 
 -(void)resumeAudio:(CDVInvokedUrlCommand *) command {
-    [self resume:command type:[NSString stringWithString:TYPE_AUDIO]];
+	[self resume:command type:[NSString stringWithString:TYPE_AUDIO]];
 }
 
 -(void)stopAudio:(CDVInvokedUrlCommand *) command {
-    [self stop:command type:[NSString stringWithString:TYPE_AUDIO]];
+	[self stop:command type:[NSString stringWithString:TYPE_AUDIO]];
 }
 
 -(void) setBackgroundColor:(NSString *)color {
@@ -196,33 +199,52 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 
 	[imageView setImage:[self getImage:imagePath]];
 }
+- (void)MPMoviePlayerPlaybackStateDidChange:(NSNotification *)notification
+{
+	switch(moviePlayer.playbackState) {
+		case MPMoviePlaybackStatePlaying:
+			isPause = false;
+		break;
+		case MPMoviePlaybackStateStopped:
+		case MPMoviePlaybackStatePaused:
+			if(!isPause) {
+				//TODO : send event
+			}
+			isPause = true;
+		break;
+		default:;
+	}
 
+}
 -(void)startPlayer:(NSString*)uri {
 	NSURL *url = [NSURL URLWithString:uri];
 
 	moviePlayer =  [[MPMoviePlayerController alloc] initWithContentURL:url];
 
-	[moviePlayer setCurrentPlaybackRate:playbackRate];
-
 	// Listen for playback finishing
 	[[NSNotificationCenter defaultCenter] addObserver:self
-											 selector:@selector(moviePlayBackDidFinish:)
-												 name:MPMoviePlayerPlaybackDidFinishNotification
-											   object:moviePlayer];
+	selector:@selector(moviePlayBackDidFinish:)
+	name:MPMoviePlayerPlaybackDidFinishNotification
+	object:moviePlayer];
 	// Listen for click on the "Done" button
 	[[NSNotificationCenter defaultCenter] addObserver:self
-											 selector:@selector(doneButtonClick:)
-												 name:MPMoviePlayerWillExitFullscreenNotification
-											   object:nil];
+	selector:@selector(doneButtonClick:)
+	name:MPMoviePlayerWillExitFullscreenNotification
+	object:nil];
 	// Listen for orientation change
 	[[NSNotificationCenter defaultCenter] addObserver:self
-											 selector:@selector(orientationChanged:)
-												 name:UIDeviceOrientationDidChangeNotification
-											   object:nil];
+	selector:@selector(orientationChanged:)
+	name:UIDeviceOrientationDidChangeNotification
+	object:nil];
+
+	[[NSNotificationCenter defaultCenter] addObserver:self
+	selector:@selector(MPMoviePlayerPlaybackStateDidChange:)
+	name:MPMoviePlayerPlaybackStateDidChangeNotification
+	object:nil];
 
 	moviePlayer.controlStyle = MPMovieControlStyleDefault;
 
-	moviePlayer.shouldAutoplay = YES;
+	moviePlayer.shouldAutoplay = NO;
 	if (imageView != nil) {
 		[moviePlayer.backgroundView setAutoresizesSubviews:YES];
 		[moviePlayer.backgroundView addSubview:imageView];
@@ -231,11 +253,14 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 	[self.viewController.view addSubview:moviePlayer.view];
 
 	// Note: animating does a fade to black, which may not match background color
-    if (initFullscreen) {
-        [moviePlayer setFullscreen:YES animated:NO];
-    } else {
-        [moviePlayer setFullscreen:NO animated:NO];
-    }
+	if (initFullscreen) {
+		[moviePlayer setFullscreen:YES animated:NO];
+	} else {
+		[moviePlayer setFullscreen:NO animated:NO];
+	}
+
+	[moviePlayer play];
+	[moviePlayer setCurrentPlaybackRate:playbackRate];
 }
 
 - (void) moviePlayBackDidFinish:(NSNotification*)notification {
@@ -275,24 +300,24 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 - (void)cleanup {
 	NSLog(@"Clean up");
 	imageView = nil;
-    initFullscreen = false;
+	initFullscreen = false;
 	backgroundColor = nil;
 
 	// Remove Done Button listener
 	[[NSNotificationCenter defaultCenter]
-							removeObserver:self
-									  name:MPMoviePlayerWillExitFullscreenNotification
-									object:nil];
+	removeObserver:self
+	name:MPMoviePlayerWillExitFullscreenNotification
+	object:nil];
 	// Remove playback finished listener
 	[[NSNotificationCenter defaultCenter]
-							removeObserver:self
-									  name:MPMoviePlayerPlaybackDidFinishNotification
-									object:moviePlayer];
+	removeObserver:self
+	name:MPMoviePlayerPlaybackDidFinishNotification
+	object:moviePlayer];
 	// Remove orientation change listener
 	[[NSNotificationCenter defaultCenter]
-							removeObserver:self
-									  name:UIDeviceOrientationDidChangeNotification
-									object:nil];
+	removeObserver:self
+	name:UIDeviceOrientationDidChangeNotification
+	object:nil];
 
 	if (moviePlayer) {
 		moviePlayer.fullscreen = NO;

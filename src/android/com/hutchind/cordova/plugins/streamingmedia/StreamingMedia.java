@@ -22,7 +22,7 @@ public class StreamingMedia extends CordovaPlugin {
 
 	private static final int ACTIVITY_CODE_PLAY_MEDIA = 7;
 
-	private CallbackContext callbackContext;
+	public static CallbackContext callbackContext;
 
 	private static final String TAG = "StreamingMediaPlugin";
 
@@ -100,7 +100,15 @@ public class StreamingMedia extends CordovaPlugin {
 		super.onActivityResult(requestCode, resultCode, intent);
 		if (ACTIVITY_CODE_PLAY_MEDIA == requestCode) {
 			if (Activity.RESULT_OK == resultCode) {
-				this.callbackContext.success();
+				JSONObject json = null;
+				if (intent != null && intent.hasExtra("json")) {
+					try {
+						json = new JSONObject(intent.getStringExtra("json"));
+					} catch (JSONException e) {
+						e.printStackTrace();
+					}
+				}
+				this.callbackContext.success(json);
 			} else if (Activity.RESULT_CANCELED == resultCode) {
 				String errMsg = "Error";
 				if (intent != null && intent.hasExtra("message")) {
