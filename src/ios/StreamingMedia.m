@@ -203,13 +203,25 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 {
 	switch(moviePlayer.playbackState) {
 		case MPMoviePlaybackStatePlaying:
-			isPause = false;
-		break;
+        {
+            isPause = false;
+        
+            NSDictionary *result = [[NSDictionary alloc] initWithObjectsAndKeys:@"play",@"type", [[NSNumber alloc] initWithDouble:moviePlayer.currentPlaybackTime], @"position",
+                                    [[NSNumber alloc] initWithDouble:moviePlayer.duration], @"duration", nil];
+            CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:result];
+            [pluginResult setKeepCallback:[NSNumber numberWithBool:YES]];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
+        }
+            break;
 		case MPMoviePlaybackStateStopped:
 		case MPMoviePlaybackStatePaused:
 			if(!isPause) {
-				//TODO : send event
-			}
+                NSDictionary *result = [[NSDictionary alloc] initWithObjectsAndKeys: @"pause", @"type", [[NSNumber alloc] initWithDouble:moviePlayer.currentPlaybackTime], @"position",
+                                        [[NSNumber alloc] initWithDouble:moviePlayer.duration], @"duration", nil];
+                CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:result];
+                [pluginResult setKeepCallback:[NSNumber numberWithBool:YES]];
+                [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
+            }
 			isPause = true;
 		break;
 		default:;
@@ -283,8 +295,9 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 		CDVPluginResult* pluginResult;
 		if ([errorMsg length] != 0) {
 			pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:errorMsg];
-		} else {
-			pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:true];
+        } else {
+            NSDictionary *result = [[NSDictionary alloc] initWithObjectsAndKeys:@"end",@"type", [[NSNumber alloc] initWithDouble:moviePlayer.duration], @"duration", [[NSNumber alloc] initWithDouble:moviePlayer.currentPlaybackTime], @"position", nil];
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:result];
 		}
 		[self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
 	}
@@ -292,9 +305,13 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 
 -(void)doneButtonClick:(NSNotification*)notification{
 	[self cleanup];
+    
+    NSDictionary *result = [[NSDictionary alloc] initWithObjectsAndKeys:@"end",@"type", [[NSNumber alloc] initWithDouble:moviePlayer.duration], @"duration", [[NSNumber alloc] initWithDouble:moviePlayer.currentPlaybackTime], @"position", nil];
+    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:result];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
+}
 
-	CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsBool:true];
-	[self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
+- (void)endOfPlay {
 }
 
 - (void)cleanup {
