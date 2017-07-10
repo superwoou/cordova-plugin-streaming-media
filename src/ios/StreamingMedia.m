@@ -289,7 +289,7 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
     
 
 //	[moviePlayer play];
-    gap = 1;
+    gap = 0;
 	[moviePlayer setCurrentPlaybackRate:playbackRate];
     
     [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(handleTimer:) userInfo:nil repeats:YES];
@@ -301,13 +301,13 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
     NSLog(@"seek %f %f", _cpt, playbackTime);
     if (_cpt == _cpt)
     {
-        if( _cpt < playbackTime)
+        if( _cpt == 0 && playbackTime > 5)
         {
         
             NSLog(@"seek to %f", playbackTime);
             [moviePlayer setCurrentPlaybackTime:playbackTime+gap];
             NSLog(@"seek after %f", moviePlayer.currentPlaybackTime);
-            gap*=2;
+            gap++;
         } else {
             [moviePlayer play];
             [timer invalidate];
