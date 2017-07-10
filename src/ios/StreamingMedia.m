@@ -20,7 +20,11 @@
 	UIImageView *imageView;
 	BOOL *initFullscreen;
 	double playbackRate;
+    double playbackTime;
 	BOOL isPause;
+    BOOL videoLoaded;
+    
+    double gap;
 }
 
 NSString * const TYPE_VIDEO = @"VIDEO";
@@ -51,7 +55,15 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 	} else {
 		playbackRate = 1.f;
 	}
-
+    
+    if (![options isKindOfClass:[NSNull class]] && [options objectForKey:@"playbackTime"]) {
+        playbackTime = [[options objectForKey:@"playbackTime"] doubleValue];
+    } else {
+        playbackTime = 1.f;
+    }
+    
+    videoLoaded = false;
+    
 	if ([type isEqualToString:TYPE_AUDIO]) {
 		// bgImage
 		// bgImageScale
@@ -205,6 +217,8 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 		case MPMoviePlaybackStatePlaying:
         {
             isPause = false;
+            
+            if(moviePlayer.currentPlaybackTime != moviePlayer.currentPlaybackTime)  break;
         
             NSDictionary *result = [[NSDictionary alloc] initWithObjectsAndKeys:@"play",@"type", [[NSNumber alloc] initWithDouble:moviePlayer.currentPlaybackTime], @"position",
                                     [[NSNumber alloc] initWithDouble:moviePlayer.duration], @"duration", nil];
@@ -228,6 +242,7 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 	}
 
 }
+
 -(void)startPlayer:(NSString*)uri {
 	NSURL *url = [NSURL URLWithString:uri];
 
@@ -253,7 +268,8 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 	selector:@selector(MPMoviePlayerPlaybackStateDidChange:)
 	name:MPMoviePlayerPlaybackStateDidChangeNotification
 	object:nil];
-
+    
+    
 	moviePlayer.controlStyle = MPMovieControlStyleDefault;
 
 	moviePlayer.shouldAutoplay = NO;
@@ -270,9 +286,33 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 	} else {
 		[moviePlayer setFullscreen:NO animated:NO];
 	}
+    
 
-	[moviePlayer play];
+//	[moviePlayer play];
+    gap = 1;
 	[moviePlayer setCurrentPlaybackRate:playbackRate];
+    
+    [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(handleTimer:) userInfo:nil repeats:YES];
+}
+
+- (void)handleTimer:(NSTimer*)timer {
+    //are we currently seeking?
+    double _cpt = moviePlayer.currentPlaybackTime;
+    NSLog(@"seek %f %f", _cpt, playbackTime);
+    if (_cpt == _cpt)
+    {
+        if( _cpt < playbackTime)
+        {
+        
+            NSLog(@"seek to %f", playbackTime);
+            [moviePlayer setCurrentPlaybackTime:playbackTime+gap];
+            NSLog(@"seek after %f", moviePlayer.currentPlaybackTime);
+            gap*=2;
+        } else {
+            [moviePlayer play];
+            [timer invalidate];
+        }
+    }
 }
 
 - (void) moviePlayBackDidFinish:(NSNotification*)notification {
@@ -304,11 +344,12 @@ NSString * const DEFAULT_IMAGE_SCALE = @"center";
 }
 
 -(void)doneButtonClick:(NSNotification*)notification{
-	[self cleanup];
-    
     NSDictionary *result = [[NSDictionary alloc] initWithObjectsAndKeys:@"end",@"type", [[NSNumber alloc] initWithDouble:moviePlayer.duration], @"duration", [[NSNumber alloc] initWithDouble:moviePlayer.currentPlaybackTime], @"position", nil];
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:result];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
+    
+    
+    [self cleanup];
 }
 
 - (void)endOfPlay {
