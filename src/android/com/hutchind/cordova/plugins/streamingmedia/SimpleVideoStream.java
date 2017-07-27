@@ -138,6 +138,24 @@ public class SimpleVideoStream extends Activity implements
 		public void run() {
 			try {
 				if (mMediaPlayer.isPlaying()) {
+					if(mIsPause) {
+						JSONObject json = new JSONObject();
+						try {
+							json.put("type", "play");
+							json.put("duration", mDuration);
+							try {
+								json.put("position", mMediaPlayer.getCurrentPosition());
+							} catch(IllegalStateException e) {
+								json.put("position", mDuration);
+							}
+						} catch (JSONException e) {
+							e.printStackTrace();
+						}
+
+						PluginResult result = new PluginResult(PluginResult.Status.OK, json.toString());
+						result.setKeepCallback(true);
+						StreamingMedia.callbackContext.sendPluginResult(result);
+					}
 					mIsPause = false;
 				} else {
 					if(!mIsPause) {
@@ -168,6 +186,24 @@ public class SimpleVideoStream extends Activity implements
 		mVideoView.start();
 		mVideoView.postDelayed(checkIfPlaying, 0);
 		mVideoView.postDelayed(pauseCheck, 300);
+
+
+		JSONObject json = new JSONObject();
+		try {
+			json.put("type", "play");
+			json.put("duration", mDuration);
+			try {
+				json.put("position", mMediaPlayer.getCurrentPosition());
+			} catch(IllegalStateException e) {
+				json.put("position", mDuration);
+			}
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+
+		PluginResult result = new PluginResult(PluginResult.Status.OK, json.toString());
+		result.setKeepCallback(true);
+		StreamingMedia.callbackContext.sendPluginResult(result);
 	}
 
 	@Override
