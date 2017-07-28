@@ -27,8 +27,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class SimpleVideoStream extends Activity implements
-	MediaPlayer.OnCompletionListener, MediaPlayer.OnPreparedListener,
-	MediaPlayer.OnErrorListener, MediaPlayer.OnBufferingUpdateListener {
+		MediaPlayer.OnCompletionListener, MediaPlayer.OnPreparedListener,
+		MediaPlayer.OnErrorListener, MediaPlayer.OnBufferingUpdateListener {
 	private String TAG = getClass().getSimpleName();
 	private VideoView mVideoView = null;
 	private MediaPlayer mMediaPlayer = null;
@@ -49,8 +49,7 @@ public class SimpleVideoStream extends Activity implements
 
 		Bundle b = getIntent().getExtras();
 		mVideoUrl = b.getString("mediaUrl");
-		mShouldAutoClose = b.getBoolean("shouldAutoClose");
-		mShouldAutoClose = mShouldAutoClose == null ? true : mShouldAutoClose;
+		mShouldAutoClose = b.containsKey("shouldAutoClose") ? b.getBoolean("shouldAutoClose") : true;
 
 		RelativeLayout relLayout = new RelativeLayout(this);
 		relLayout.setBackgroundColor(Color.BLACK);
@@ -152,7 +151,7 @@ public class SimpleVideoStream extends Activity implements
 							e.printStackTrace();
 						}
 
-						PluginResult result = new PluginResult(PluginResult.Status.OK, json.toString());
+						PluginResult result = new PluginResult(PluginResult.Status.OK, json);
 						result.setKeepCallback(true);
 						StreamingMedia.callbackContext.sendPluginResult(result);
 					}
@@ -201,7 +200,7 @@ public class SimpleVideoStream extends Activity implements
 			e.printStackTrace();
 		}
 
-		PluginResult result = new PluginResult(PluginResult.Status.OK, json.toString());
+		PluginResult result = new PluginResult(PluginResult.Status.OK, json);
 		result.setKeepCallback(true);
 		StreamingMedia.callbackContext.sendPluginResult(result);
 	}
@@ -228,7 +227,7 @@ public class SimpleVideoStream extends Activity implements
 			e.printStackTrace();
 		}
 
-		PluginResult result = new PluginResult(PluginResult.Status.OK, json.toString());
+		PluginResult result = new PluginResult(PluginResult.Status.OK, json);
 		result.setKeepCallback(true);
 		StreamingMedia.callbackContext.sendPluginResult(result);
 
@@ -250,7 +249,8 @@ public class SimpleVideoStream extends Activity implements
 		if(resultCode == RESULT_OK) {
 			JSONObject json = new JSONObject();
 			try {
-				json.put("type", "end");
+				if(message!=null)	json.put("type", message);
+				else		json.put("type", "end");
 				json.put("duration", mDuration);
 				try {
 					json.put("position", mMediaPlayer.getCurrentPosition());
@@ -260,10 +260,13 @@ public class SimpleVideoStream extends Activity implements
 			} catch (JSONException e) {
 				e.printStackTrace();
 			}
-			intent.putExtra("json", json.toString());
+
+			PluginResult result = new PluginResult(PluginResult.Status.OK, json);
+			StreamingMedia.callbackContext.sendPluginResult(result);
+		} else {
+			intent.putExtra("message", message);
+			setResult(resultCode, intent);
 		}
-		intent.putExtra("message", message);
-		setResult(resultCode, intent);
 		finish();
 	}
 
@@ -307,7 +310,7 @@ public class SimpleVideoStream extends Activity implements
 	@Override
 	public void onBackPressed() {
 		// If we're leaving, let's finish the activity
-		wrapItUp(RESULT_OK, null);
+		wrapItUp(RESULT_OK, "close");
 	}
 
 	@Override
